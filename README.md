@@ -10,6 +10,7 @@ e.g. as `KnutMann/homebrew-adium`. This repository will not be maintained on its
 
 ```sh
 brew tap iilonmasc/adium
+brew trust --formula iilonmasc/adium/adium   # Homebrew 7 loads third-party formulae only once trusted
 brew install adium
 ln -sf "$(brew --prefix)/var/adium/Adium.app" ~/Applications/Adium.app
 ```
