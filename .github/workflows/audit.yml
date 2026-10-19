@@ -1,0 +1,56 @@
+# What brew itself would say about this formula, on every change: the audit,
+# the style check, and a real build-from-source install with the formula's own
+# test, on the same runner image the application's continuous integration uses.
+# The install takes a few minutes; the audit a few seconds.
+
+name: Audit and build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: brew audit and brew style
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Tap this checkout
+        run: brew tap KnutMann/adium "$PWD"
+
+      - name: Audit
+        run: brew audit --strict KnutMann/adium/adium
+
+      - name: Style
+        run: brew style KnutMann/adium
+
+  install:
+    name: brew install from source
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Take the newest Xcode on the image
+        run: |
+          newest=$(find /Applications -maxdepth 1 -name 'Xcode*.app' | sort -V | tail -1)
+          echo "selecting $newest"
+          sudo xcode-select -s "$newest"
+          xcodebuild -version
+
+      - name: Tap this checkout
+        run: brew tap KnutMann/adium "$PWD"
+
+      - name: Install
+        run: brew install --build-from-source --verbose KnutMann/adium/adium
+
+      - name: Test
+        run: brew test KnutMann/adium/adium
