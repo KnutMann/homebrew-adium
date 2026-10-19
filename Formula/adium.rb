@@ -35,7 +35,7 @@ class Adium < Formula
   # Pinned as in Dependencies/picomemo/fetch-picomemo.sh.
   resource "picomemo" do
     url "https://github.com/mierenhoop/picomemo.git",
-        revision: "3ad6c109cc53a84708d57e4a7fe91d43bde864a0"
+        revision: "616b7014ea293a1fd5f785b2535db5bdaa0acfdf"
   end
 
   def app_archive

@@ -60,8 +60,21 @@ jobs:
           FULL: ${{ steps.resolve.outputs.full }}
           VERSION: ${{ steps.resolve.outputs.version }}
         run: |
-          sed -i -E "s/revision: \"[0-9a-f]{40}\"/revision: \"$FULL\"/" Formula/adium.rb
-          sed -i -E "s/^  version \"[^\"]+\"/  version \"$VERSION\"/" Formula/adium.rb
+          # Only the revision that follows the application's own url: the picomemo
+          # resource below it has a revision line of the same shape, and the first
+          # press of the button overwrote both.
+          python3 - "$FULL" "$VERSION" <<'PY'
+          import re, sys
+          full, version = sys.argv[1], sys.argv[2]
+          path = "Formula/adium.rb"
+          text = open(path).read()
+          text, n = re.subn(r'(url "https://github\.com/KnutMann/adium\.git",\n\s+revision: ")[0-9a-f]{40}(")',
+                            lambda m: m.group(1) + full + m.group(2), text, count=1)
+          assert n == 1, "the application's revision line was not found"
+          text, n = re.subn(r'^  version "[^"]+"', '  version "%s"' % version, text, count=1, flags=re.M)
+          assert n == 1, "the version line was not found"
+          open(path, "w").write(text)
+          PY
           grep -nE 'revision: |^  version ' Formula/adium.rb
 
       - name: Commit and push
