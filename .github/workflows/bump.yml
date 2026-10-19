@@ -29,7 +29,10 @@ permissions:
 jobs:
   bump:
     name: Pin the revision
-    runs-on: macos-15
+    # Linux on purpose: this job only asks the API and writes two lines, and
+    # GitHub's macOS runners can queue for a quarter of an hour and then give
+    # up. The audit and the build from source below still need a Mac.
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
@@ -47,7 +50,7 @@ jobs:
           full=$(gh api "repos/KnutMann/adium/commits/$rev" --jq .sha)
           date=$(gh api "repos/KnutMann/adium/commits/$rev" --jq .commit.committer.date | cut -c1-10 | tr -d -)
           curl -fsSL "https://raw.githubusercontent.com/KnutMann/adium/$full/Resources/Info.plist" -o "$RUNNER_TEMP/Info.plist"
-          app=$(plutil -extract CFBundleShortVersionString raw -o - "$RUNNER_TEMP/Info.plist")
+          app=$(python3 -c 'import plistlib, sys; print(plistlib.load(open(sys.argv[1], "rb"))["CFBundleShortVersionString"])' "$RUNNER_TEMP/Info.plist")
           echo "pinning $full as $app.$date"
           echo "full=$full" >> "$GITHUB_OUTPUT"
           echo "version=$app.$date" >> "$GITHUB_OUTPUT"
@@ -57,8 +60,8 @@ jobs:
           FULL: ${{ steps.resolve.outputs.full }}
           VERSION: ${{ steps.resolve.outputs.version }}
         run: |
-          sed -i '' -E "s/revision: \"[0-9a-f]{40}\"/revision: \"$FULL\"/" Formula/adium.rb
-          sed -i '' -E "s/^  version \"[^\"]+\"/  version \"$VERSION\"/" Formula/adium.rb
+          sed -i -E "s/revision: \"[0-9a-f]{40}\"/revision: \"$FULL\"/" Formula/adium.rb
+          sed -i -E "s/^  version \"[^\"]+\"/  version \"$VERSION\"/" Formula/adium.rb
           grep -nE 'revision: |^  version ' Formula/adium.rb
 
       - name: Commit and push
