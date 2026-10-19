@@ -12,7 +12,7 @@ class Adium < Formula
   desc "Instant messaging application for macOS, built from source"
   homepage "https://github.com/KnutMann/adium"
   url "https://github.com/KnutMann/adium.git",
-      revision: "e9b5fe9137444deeb770aa5e2c06b2e6e668dc77"
+      revision: "3ad6c109cc53a84708d57e4a7fe91d43bde864a0"
   # The application's own version, then the date of the pinned revision, so
   # that every new pin compares greater than the one before it and brew
   # upgrade notices.
@@ -35,7 +35,7 @@ class Adium < Formula
   # Pinned as in Dependencies/picomemo/fetch-picomemo.sh.
   resource "picomemo" do
     url "https://github.com/mierenhoop/picomemo.git",
-        revision: "616b7014ea293a1fd5f785b2535db5bdaa0acfdf"
+        revision: "3ad6c109cc53a84708d57e4a7fe91d43bde864a0"
   end
 
   def app_archive
