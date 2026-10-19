@@ -2,7 +2,7 @@
 #
 # A formula may not write to /Applications, and a cask would need a notarised
 # download. Built here, the bundle carries no quarantine attribute, so the ad
-# hoc signature xcodebuild gives it is enough for Gatekeeper - as long as
+# hoc signature xcodebuild gives it is enough for Gatekeeper, as long as
 # nothing touches the bundle afterwards. Homebrew does touch it: every Mach-O
 # file in a keg has its install names rewritten to keg paths and is re-signed
 # on its own, which breaks the seal of the bundle around it. So the keg holds
@@ -12,18 +12,19 @@ class Adium < Formula
   desc "Instant messaging application for macOS, built from source"
   homepage "https://github.com/KnutMann/adium"
   url "https://github.com/KnutMann/adium.git",
-      revision: "c31da03d6c41e22ee25b14e2f90ed2405cdf2a85"
-  version "1.8.0-c31da03"
+      revision: "e9b5fe9137444deeb770aa5e2c06b2e6e668dc77"
+  # The application's own version, then the date of the pinned revision, so
+  # that every new pin compares greater than the one before it and brew
+  # upgrade notices.
+  version "1.8.0.20261019"
   license "GPL-2.0-or-later"
   head "https://github.com/KnutMann/adium.git", branch: "master"
 
-  # picomemo is compiled against these headers; the application links the
-  # libcrypto.3.dylib checked into Frameworks/.
-  depends_on "openssl@3" => :build
   depends_on xcode: ["16.0", :build]
-  # The frameworks and protocol plug-ins checked into the repository are arm64 only.
+  # The frameworks and protocol plug-ins checked into the repository are arm64
+  # only, and the application is built for macOS 13.
   depends_on arch: :arm64
-  depends_on :macos
+  depends_on macos: :ventura
 
   # Pinned as in Dependencies/webrtc/fetch-webrtc.sh.
   resource "webrtc" do
@@ -53,10 +54,12 @@ class Adium < Formula
     (buildpath/"Dependencies/picomemo/picomemo").install resource("picomemo")
 
     # Through the environment, as fetch-picomemo.sh does: on the command line
-    # CFLAGS would replace the include paths the Makefile appends to it.
+    # CFLAGS would replace the include paths the Makefile appends to it. The
+    # OpenSSL headers are the repository's own, checked in beside the libcrypto
+    # the application links, so nothing in this build comes from Homebrew.
     cd "Dependencies/picomemo/picomemo" do
       with_env(DRIVERS: "c25519.c openssl.c",
-               CFLAGS:  "-O2 -mmacosx-version-min=13.0 -I#{formula_opt_include("openssl@3")}") do
+               CFLAGS:  "-O2 -mmacosx-version-min=13.0 -I#{buildpath}/Frameworks/openssl/include") do
         system "make", "o/libpicomemo.a"
       end
     end

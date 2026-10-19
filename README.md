@@ -1,46 +1,57 @@
-# homebrew-adium (draft)
+# homebrew-adium
 
-A Homebrew tap that builds [Adium](https://github.com/KnutMann/adium) from source.
-It answers [KnutMann/adium#9](https://github.com/KnutMann/adium/issues/9).
-
-**This is a draft to hand over.** KnutMann maintains Adium, so the tap belongs with him,
-e.g. as `KnutMann/homebrew-adium`. This repository will not be maintained on its own.
+A Homebrew tap that builds [Adium](https://github.com/KnutMann/adium) from source
+on Apple Silicon. It exists because there is no signed download yet
+([KnutMann/adium#9](https://github.com/KnutMann/adium/issues/9)): a bundle built
+on your own machine carries no quarantine attribute, so Gatekeeper lets it start
+without notarisation and without anybody holding a paid Apple Developer account.
 
 ## Install
 
 ```sh
-brew tap iilonmasc/adium
-brew trust --formula iilonmasc/adium/adium   # Homebrew 7 loads third-party formulae only once trusted
-brew install adium
+brew tap KnutMann/adium
+brew trust --formula KnutMann/adium/adium   # Homebrew 7 loads third-party formulae only once trusted
+brew install KnutMann/adium/adium
 ln -sf "$(brew --prefix)/var/adium/Adium.app" ~/Applications/Adium.app
 ```
 
-Requirements: Apple Silicon and a full Xcode (the Command Line Tools alone are not enough).
+Spell the formula out. Homebrew's own tap has a cask called `adium` too, and
+that one is the last Intel release, 1.5.10.4, which runs on Apple Silicon only
+through Rosetta and connects to nothing this fork added.
+
+Requirements: Apple Silicon, macOS 13 or later, and a full Xcode 16 or newer.
+The Command Line Tools alone cannot build an Xcode project. The build takes a
+few minutes.
+
+## Update
+
+```sh
+brew update && brew upgrade KnutMann/adium/adium
+```
+
+The formula pins one revision of the repository, and a new pin is a new
+version, so `brew upgrade` sees it. `brew install --HEAD KnutMann/adium/adium`
+builds the tip of `master` instead.
 
 ## How it works
 
-- The formula builds a pinned revision of `KnutMann/adium` the same way `./install.sh --build-only` does.
-  It fetches the WebRTC framework and picomemo as pinned resources, and it runs
-  `Utilities/verify-purple-plugins.sh` before and after the build.
-- The app is signed ad hoc. A bundle built on the machine has no quarantine attribute,
-  so Gatekeeper lets it start without notarisation and without a paid Apple Developer account.
-- Homebrew rewrites the install names of every Mach-O file inside a keg and re-signs each
-  file on its own, which breaks the bundle's signature. So the keg keeps the verified bundle
-  as a zip, and `post_install_steps` unpacks it to `$(brew --prefix)/var/adium/Adium.app`,
-  which Homebrew leaves alone.
-- `brew uninstall adium` leaves `$(brew --prefix)/var/adium` behind. Remove it by hand.
+- The formula builds a pinned revision of `KnutMann/adium` the same way
+  `./install.sh --build-only` does. It fetches the WebRTC framework and picomemo
+  as pinned resources and runs `Utilities/verify-purple-plugins.sh` before and
+  after the build, so a protocol plug-in that does not register with the bundled
+  libpurple fails the install rather than the first connection.
+- Nothing in the build comes from Homebrew. The OpenSSL headers that picomemo and
+  the OMEMO media code compile against are checked into the repository beside the
+  libcrypto they link.
+- The app is signed ad hoc. Homebrew rewrites the install names of every Mach-O
+  file inside a keg and re-signs each file on its own, which would break the
+  bundle's signature, so the keg keeps the verified bundle as a zip and
+  `post_install_steps` unpacks it to `$(brew --prefix)/var/adium/Adium.app`, which
+  Homebrew leaves alone.
+- `brew uninstall adium` leaves `$(brew --prefix)/var/adium` behind. Remove it by
+  hand.
 
-## Caveat: OpenSSL
+## Origin
 
-picomemo is compiled against the headers of Homebrew's `openssl@3`, but it links the
-`libcrypto.3.dylib` bundled with Adium. Today both are 3.5.9, and every OpenSSL symbol
-the app needs is exported by the bundled copy. If Homebrew's `openssl@3` moves past the
-bundled release, that check has to be repeated, or the formula has to pin a matching branch.
-
-## Tested
-
-- Apple M5 Pro, macOS 27.0.1, Xcode 27.0, Homebrew 7.0.9
-- `brew install --build-from-source` took about 1.5 minutes
-- `brew audit --strict`, `brew style` and `brew test` pass
-- Linked to `~/Applications` as shown above, the app starts without a Gatekeeper prompt
-  and loads all of its protocol plug-ins
+Drafted by Tim Otlik ([@iilonmasc](https://github.com/iilonmasc)) in October 2026
+as an answer to issue 9, and handed over to live beside the application. Thank you.
