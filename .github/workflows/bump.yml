@@ -1,0 +1,86 @@
+# Move the formula to a new revision of KnutMann/adium. By hand, when a state
+# of master has been judged good; from a release, once there are releases.
+# Not on every push: every brew user would rebuild for five minutes on the
+# next upgrade, and master is not a release.
+#
+# The job writes revision and version into the formula, commits and pushes,
+# and then calls the audit and the build from source against the commit it
+# just made, the same checks every push gets. They have to be called from
+# here: a push made with the workflow's own token starts no workflow by
+# itself. The version is the application's own number followed by the date of
+# the pinned commit, so that each pin compares greater than the one before.
+#
+#   gh workflow run bump.yml -R KnutMann/homebrew-adium                 tip of master
+#   gh workflow run bump.yml -R KnutMann/homebrew-adium -f revision=SHA  a chosen commit
+
+name: Bump the formula
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Commit of KnutMann/adium to pin (empty means the tip of master)
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    name: Pin the revision
+    runs-on: macos-15
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Resolve the revision and read the application's version
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ inputs.revision }}
+        run: |
+          rev="${REQUESTED:-master}"
+          full=$(gh api "repos/KnutMann/adium/commits/$rev" --jq .sha)
+          date=$(gh api "repos/KnutMann/adium/commits/$rev" --jq .commit.committer.date | cut -c1-10 | tr -d -)
+          curl -fsSL "https://raw.githubusercontent.com/KnutMann/adium/$full/Resources/Info.plist" -o "$RUNNER_TEMP/Info.plist"
+          app=$(plutil -extract CFBundleShortVersionString raw -o - "$RUNNER_TEMP/Info.plist")
+          echo "pinning $full as $app.$date"
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "version=$app.$date" >> "$GITHUB_OUTPUT"
+
+      - name: Write revision and version into the formula
+        env:
+          FULL: ${{ steps.resolve.outputs.full }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          sed -i '' -E "s/revision: \"[0-9a-f]{40}\"/revision: \"$FULL\"/" Formula/adium.rb
+          sed -i '' -E "s/^  version \"[^\"]+\"/  version \"$VERSION\"/" Formula/adium.rb
+          grep -nE 'revision: |^  version ' Formula/adium.rb
+
+      - name: Commit and push
+        id: commit
+        env:
+          FULL: ${{ steps.resolve.outputs.full }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          if git diff --quiet; then
+            echo "the formula already pins $FULL"
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "The formula moves to KnutMann/adium ${FULL:0:9} as $VERSION"
+          git push
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Audit and build the new pin
+    needs: bump
+    uses: ./.github/workflows/audit.yml
+    with:
+      ref: ${{ needs.bump.outputs.sha }}

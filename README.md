@@ -33,6 +33,22 @@ The formula pins one revision of the repository, and a new pin is a new
 version, so `brew upgrade` sees it. `brew install --HEAD KnutMann/adium/adium`
 builds the tip of `master` instead.
 
+## Moving the formula to a newer Adium
+
+The formula pins one commit, and it moves when a state of `master` has been
+judged good, not on every push. Press "Run workflow" on the "Bump the formula"
+action, or:
+
+```sh
+gh workflow run bump.yml -R KnutMann/homebrew-adium                  # the tip of master
+gh workflow run bump.yml -R KnutMann/homebrew-adium -f revision=SHA   # a chosen commit
+```
+
+It writes the revision and the version (the application's own number, then the
+date of the commit) into the formula, commits, and then audits and builds the
+new pin from source before anybody gets it. Once Adium has releases, the same
+job will follow the tags instead.
+
 ## How it works
 
 - The formula builds a pinned revision of `KnutMann/adium` the same way
